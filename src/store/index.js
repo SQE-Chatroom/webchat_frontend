@@ -3,6 +3,7 @@ import Vue from 'vue';
 import Vuex from 'vuex';
 import axios from 'axios';
 import { CompatClient, Stomp, StompSubscription } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 Vue.use(Vuex);
 
@@ -55,7 +56,8 @@ export default new Vuex.Store({
     actions: {
         startClient({ state, commit }) {
             if (state.wsClient === null) {
-                const client = Stomp.client('ws://localhost:8080/webchat');
+                const sock = new SockJS('http://localhost:8080/webchat');
+                const client = Stomp.over(sock);
                 client.activate();
                 commit('setClient', client);
             }
