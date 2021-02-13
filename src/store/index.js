@@ -7,15 +7,23 @@ import SockJS from 'sockjs-client';
 
 Vue.use(Vuex);
 
-// todo
-const api = axios.create({ baseURL: 'http://localhost:8080' });
+let api = createApi();
+let backendUrl = getDefaultBackendUrl();
 
-let nextMsgId = 3;
+let nextMsgId = 1;
+
+function createApi() {
+    return axios.create({ baseURL: 'http://localhost:8080' });
+}
+
+function getDefaultBackendUrl() {
+    return 'http://localhost:8080/webchat';
+}
 
 export default new Vuex.Store({
     state: {
         username: null,
-        availableRooms: [],
+        availableRooms: {},
         currentRoom: null,
         messages: [],
         /** @type CompatClient */
@@ -43,7 +51,7 @@ export default new Vuex.Store({
             state.messages.push({
                 id: nextMsgId++,
                 text: message,
-                author: 'Obi-Wan Kenobi',
+                author: state.username,
             });
         },
         setCurrentRoom(state, roomId) {
@@ -54,12 +62,14 @@ export default new Vuex.Store({
         },
     },
     actions: {
-        startClient({ state, commit }) {
+        async startClient({ state, commit }) {
             if (state.wsClient === null) {
-                const sock = new SockJS('http://localhost:8080/webchat');
-                const client = Stomp.over(sock);
+                const client = Stomp.over(() => new SockJS(backendUrl));
+
                 client.activate();
                 commit('setClient', client);
+
+                return new Promise(resolve => setTimeout(resolve, 1000));
             }
         },
         stopClient({ state, commit }) {
@@ -117,7 +127,7 @@ export default new Vuex.Store({
                 await dispatch('connectToRoom', roomId);
             }
         },
-        sendMessage({ commit, state }, message) {
+        sendMessage({ state }, message) {
             if (message.length === 0) {
                 return;
             }
@@ -127,8 +137,25 @@ export default new Vuex.Store({
                 content: message,
                 type: 'CHAT',
             };
+
             state.wsClient.send(`/app/chat/${state.currentRoom}/sendMessage`, {}, JSON.stringify(chatMessage));
         },
     },
     modules: {},
 });
+
+export function _setApiForTesting(newApi) {
+    api = newApi;
+}
+
+export function _resetApiForTesting() {
+    api = createApi();
+}
+
+export function _setBackendUrlForTesting(url) {
+    backendUrl = url;
+}
+
+export function _resetBackendUrlForTesting() {
+    backendUrl = getDefaultBackendUrl();
+}
